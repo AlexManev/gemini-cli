@@ -57,6 +57,15 @@ export function AuthDialog({
     ) {
       return 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.';
     }
+
+    if (
+      process.env.AZURE_FOUNDRY_API_KEY &&
+      process.env.AZURE_FOUNDRY_ENDPOINT &&
+      (!defaultAuthType || defaultAuthType === AuthType.USE_AZURE_FOUNDRY)
+    ) {
+      return 'Existing Azure Foundry credentials detected. Select "Azure Foundry" option to use them.';
+    }
+
     return null;
   });
   const items = [
@@ -77,6 +86,7 @@ export function AuthDialog({
       value: AuthType.USE_GEMINI,
     },
     { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
+    { label: 'Azure Foundry', value: AuthType.USE_AZURE_FOUNDRY },
   ];
 
   const initialAuthIndex = items.findIndex((item) => {
@@ -93,6 +103,10 @@ export function AuthDialog({
 
     if (process.env.GEMINI_API_KEY) {
       return item.value === AuthType.USE_GEMINI;
+    }
+
+    if (process.env.AZURE_FOUNDRY_API_KEY && process.env.AZURE_FOUNDRY_ENDPOINT) {
+      return item.value === AuthType.USE_AZURE_FOUNDRY;
     }
 
     return item.value === AuthType.LOGIN_WITH_GOOGLE;

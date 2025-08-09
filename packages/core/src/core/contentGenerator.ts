@@ -19,6 +19,7 @@ import { Config } from '../config/config.js';
 import { getEffectiveModel } from './modelCheck.js';
 import { UserTierId } from '../code_assist/types.js';
 import { LoggingContentGenerator } from './loggingContentGenerator.js';
+import { AzureFoundryContentGenerator } from './azureFoundryContentGenerator.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -46,6 +47,7 @@ export enum AuthType {
   USE_GEMINI = 'gemini-api-key',
   USE_VERTEX_AI = 'vertex-ai',
   CLOUD_SHELL = 'cloud-shell',
+  USE_AZURE_FOUNDRY = 'azure-foundry',
 }
 
 export type ContentGeneratorConfig = {
@@ -54,6 +56,8 @@ export type ContentGeneratorConfig = {
   vertexai?: boolean;
   authType?: AuthType | undefined;
   proxy?: string | undefined;
+  azureFoundryEndpoint?: string;
+  azureFoundryDeployment?: string;
 };
 
 export function createContentGeneratorConfig(
@@ -64,6 +68,9 @@ export function createContentGeneratorConfig(
   const googleApiKey = process.env.GOOGLE_API_KEY || undefined;
   const googleCloudProject = process.env.GOOGLE_CLOUD_PROJECT || undefined;
   const googleCloudLocation = process.env.GOOGLE_CLOUD_LOCATION || undefined;
+  const azureFoundryApiKey = process.env.AZURE_FOUNDRY_API_KEY || undefined;
+  const azureFoundryEndpoint = process.env.AZURE_FOUNDRY_ENDPOINT || undefined;
+  const azureFoundryDeployment = process.env.AZURE_FOUNDRY_DEPLOYMENT || undefined;
 
   // Use runtime model from config if available; otherwise, fall back to parameter or default
   const effectiveModel = config.getModel() || DEFAULT_GEMINI_MODEL;
@@ -72,6 +79,8 @@ export function createContentGeneratorConfig(
     model: effectiveModel,
     authType,
     proxy: config?.getProxy(),
+    azureFoundryEndpoint,
+    azureFoundryDeployment,
   };
 
   // If we are using Google auth or we are in Cloud Shell, there is nothing else to validate for now
@@ -101,6 +110,11 @@ export function createContentGeneratorConfig(
     contentGeneratorConfig.apiKey = googleApiKey;
     contentGeneratorConfig.vertexai = true;
 
+    return contentGeneratorConfig;
+  }
+
+  if (authType === AuthType.USE_AZURE_FOUNDRY && azureFoundryApiKey && azureFoundryEndpoint) {
+    contentGeneratorConfig.apiKey = azureFoundryApiKey;
     return contentGeneratorConfig;
   }
 
@@ -144,6 +158,19 @@ export async function createContentGenerator(
     });
     return new LoggingContentGenerator(googleGenAI.models, gcConfig);
   }
+
+  if (config.authType === AuthType.USE_AZURE_FOUNDRY) {
+    if (!config.azureFoundryEndpoint || !config.apiKey) {
+      throw new Error('Azure Foundry endpoint and API key are required');
+    }
+    const azureFoundryGenerator = new AzureFoundryContentGenerator(
+      config.azureFoundryEndpoint,
+      config.apiKey,
+      config.azureFoundryDeployment,
+    );
+    return new LoggingContentGenerator(azureFoundryGenerator, gcConfig);
+  }
+
   throw new Error(
     `Error creating contentGenerator: Unsupported authType: ${config.authType}`,
   );

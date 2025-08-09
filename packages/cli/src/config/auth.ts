@@ -38,5 +38,20 @@ export const validateAuthMethod = (authMethod: string): string | null => {
     return null;
   }
 
+  if (authMethod === AuthType.USE_AZURE_FOUNDRY) {
+    const hasAzureFoundryConfig =
+      !!process.env.AZURE_FOUNDRY_API_KEY && !!process.env.AZURE_FOUNDRY_ENDPOINT;
+    if (!hasAzureFoundryConfig) {
+      return (
+        'When using Azure Foundry, you must specify:\n' +
+        '• AZURE_FOUNDRY_API_KEY environment variable.\n' +
+        '• AZURE_FOUNDRY_ENDPOINT environment variable.\n' +
+        '• AZURE_FOUNDRY_DEPLOYMENT environment variable (optional, defaults to gpt-4o).\n' +
+        'Update your environment and try again (no reload needed if using .env)!'
+      );
+    }
+    return null;
+  }
+
   return 'Invalid auth method selected.';
 };
